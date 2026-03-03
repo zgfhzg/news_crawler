@@ -1,0 +1,7 @@
+fastapi==0.135.1
+uvicorn[standard]==0.41.0
+httpx==0.28.1
+feedparser==6.0.12
+beautifulsoup4==4.14.3
+pydantic==2.12.5
+apscheduler==3.11.2
