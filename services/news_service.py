@@ -4,6 +4,7 @@ from typing import Optional
 from crawler.base import BaseCrawler
 from crawler.rss_crawler import RSSCrawler
 from crawler.naver_crawler import NaverNewsCrawler
+from database.repository import news_repository
 from models.news import NewsItem, CrawlResult
 
 
@@ -58,24 +59,34 @@ class NewsService:
         self._cache = self._deduplicate(new_items)
         self._last_crawled_at = datetime.now()
 
+        # DB에 저장 (중복 URL은 upsert로 처리)
+        saved_count = await news_repository.upsert_many(self._cache)
+        print(f"[NewsService] DB 저장 완료: {saved_count}건")
+
         return results
 
-    def get_news(
+    async def get_news(
         self,
         source: Optional[str] = None,
         category: Optional[str] = None,
         limit: int = 50,
+        offset: int = 0,
     ) -> list[NewsItem]:
-        """캐시에서 뉴스 조회 (출처/카테고리 필터링 가능)"""
-        items = self._cache
+        """DB에서 뉴스 조회 (출처/카테고리 필터링, 페이지네이션 지원)"""
+        return await news_repository.find_all(
+            source=source,
+            category=category,
+            limit=limit,
+            offset=offset,
+        )
 
-        if source:
-            items = [i for i in items if i.source.lower() == source.lower()]
-
-        if category:
-            items = [i for i in items if i.category and category in i.category]
-
-        return items[:limit]
+    async def count_news(
+        self,
+        source: Optional[str] = None,
+        category: Optional[str] = None,
+    ) -> int:
+        """DB에서 뉴스 총 개수 조회"""
+        return await news_repository.count(source=source, category=category)
 
     @staticmethod
     def _deduplicate(items: list[NewsItem]) -> list[NewsItem]:

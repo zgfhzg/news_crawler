@@ -1,3 +1,4 @@
+from datetime import datetime
 from email.utils import parsedate_to_datetime
 from typing import Optional
 
@@ -39,11 +40,16 @@ class RSSCrawler(BaseCrawler):
                 items = await self._fetch_feed(client, source, url)
                 all_items.extend(items)
 
-        # 게재 시간 기준 최신순 정렬
-        all_items.sort(
-            key=lambda x: x.published_at or "",
-            reverse=True,
-        )
+        # 게재 시간 기준 최신순 정렬 (timezone 정보 제거 후 비교)
+        def sort_key(item):
+            dt = item.published_at or datetime.min
+            # timezone-aware → naive UTC로 변환
+            if dt.tzinfo is not None:
+                from datetime import timezone
+                dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+            return dt
+
+        all_items.sort(key=sort_key, reverse=True)
         return all_items
 
     async def _fetch_feed(
